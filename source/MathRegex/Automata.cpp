@@ -7,7 +7,9 @@
 
 namespace mreg {
 
-static bool l_edge_less(const Edge &a, const Edge &b) {
+//============================================================================//
+
+bool EdgeComparator::operator()(const Edge &a, const Edge &b) const {
     if (a.ch() < b.ch()) return true;
     if (a.ch() > b.ch()) return false;
     if (a.to() < b.to()) return true;
@@ -15,69 +17,58 @@ static bool l_edge_less(const Edge &a, const Edge &b) {
     return a.from() < b.from();
 }
 
-Edge *State::first_for_ch(Rune ch) {
-    auto it = std::lower_bound(
-        edges().begin(), edges().end(), Edge(ch, 0, 0),
-        l_edge_less
-    );
-    if (it == edges().end() || it->ch() != ch)
-        return edges().end();
-    return it;
+//============================================================================//
+
+ArrayRef<const Edge> State::for_char(Rune ch) const {
+    auto start = m_edges.lower_bound(Edge(ch, 0, 0)).underlying;
+    auto end = m_edges.lower_bound(Edge(ch, (State*) UINTPTR_MAX, (State*) UINTPTR_MAX)).underlying;
+    return ArrayRef<const Edge>(start, end - start);
 }
 
-const Edge *State::first_for_ch(Rune ch) const {
-    auto it = std::lower_bound(
-        edges().begin(), edges().end(), Edge(ch, 0, 0),
-        l_edge_less
-    );
-    if (it == edges().end() || it->ch() != ch)
-        return edges().end();
-    return it;
+ArrayRef<Edge> State::for_char(Rune ch) {
+    auto start = m_edges.lower_bound(Edge(ch, 0, 0)).underlying;
+    auto end = m_edges.lower_bound(Edge(ch, (State*) UINTPTR_MAX, (State*) UINTPTR_MAX)).underlying;
+    return ArrayRef<Edge>(start, end - start);
 }
 
 void State::add_edge(Rune ch, State *to) {
     auto edge = Edge(ch, this, to);
-    auto it = std::lower_bound(
-        m_edges.begin(), m_edges.end(), edge, l_edge_less
-    );
-    if (ch == ZERO_CHAR)
+    auto it = m_edges.insert(edge).first;
+    to->m_inverse.insert(edge);
+
+    if (ch == ZERO_CHAR) {
         ++m_eps_count;
-    if((it != m_edges.end() && it->ch() == ch)
-        || (it != m_edges.begin() && (it-1)->ch() == ch)) {
+        ++automata()->m_eps_count;
+    }
+    if ((it != m_edges.begin() && std::prev(it)->ch() == ch)
+        || (std::next(it) != m_edges.end() && std::next(it)->ch() == ch)) {
         ++m_duplicate_count;
         ++automata()->m_duplicate_count;
     }
-    m_edges.insert(it, edge);
-    auto &o_inv = to->m_inv_edges;
-
-    o_inv.insert(std::lower_bound(
-        o_inv.begin(), o_inv.end(), edge, l_edge_less
-    ), edge);
 }
 
 void State::erase_edge(Rune ch, State *to) {
     auto edge = Edge(ch, this, to);
-    auto it = std::lower_bound(
-        m_edges.begin(), m_edges.end(), edge, l_edge_less
-    );
+    auto it = m_edges.find(edge);
     assert(it != m_edges.end());
-    assert(it->ch() == ch || it->to() == to);
+    assert(it->ch() == ch || it->to() == to); // no deleting wrong edge
 
-    if (ch == ZERO_CHAR)
+    if (ch == ZERO_CHAR) {
         --m_eps_count;
+        --automata()->m_eps_count;
+    }
     if ((it+1 != m_edges.end() && (it+1)->ch() == ch)
         || (it != m_edges.begin() && (it-1)->ch() == ch)) {
         --m_duplicate_count;
         --automata()->m_duplicate_count;
     }
+
     m_edges.erase(it);
-    auto &o_inv = to->m_inv_edges;
-    auto rit = std::lower_bound(
-        o_inv.begin(), o_inv.end(), edge, l_edge_less
-    );
+
+    auto rit = to->m_inverse.find(edge);
     assert(rit->from() == this);
     assert(rit->to() == to);
-    o_inv.erase(rit);
+    to->m_inverse.erase(rit);
 }
 
 State *State::add_next(Rune ch) {
@@ -110,8 +101,10 @@ void State::set_terminal(bool terminal) {
 void State::remove() {
     if (is_terminal())
         set_terminal(false);
-    while (!m_inv_edges.empty()) {
-        auto e = m_inv_edges.back();
+    if (automata()->initial() == this)
+        automata()->set_initial(nullptr);
+    while (!m_inverse.empty()) {
+        auto e = m_inverse.container.back();
         e.from()->erase_edge(e.ch(), this);
     }
     automata()->m_duplicate_count -= m_duplicate_count;
@@ -126,12 +119,7 @@ void State::remove() {
     automata()->m_states.erase(it);
 }
 
-Automata::Automata(std::nullptr_t) {
-}
-
-Automata::Automata() {
-    m_initial = add_state();
-}
+Automata::Automata() {}
 
 Automata &Automata::operator=(Automata &&o) {
     m_states = std::exchange(o.m_states, {});
@@ -171,7 +159,7 @@ void Automata::dissolve(Automata &&o) {
 
 Automata Automata::clone() const {
 
-    Automata copy(nullptr);
+    Automata copy;
     copy.m_states.reserve(m_states.size());
     copy.m_terminal.reserve(m_terminal.size());
     

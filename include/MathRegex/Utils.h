@@ -1,6 +1,7 @@
-///==========================================================================///
-/// MathRegex -- various bits & pieces
-///==========================================================================///
+///
+/// @file
+/// @brief Various bits & pieces
+///
 #pragma once
 #include <cstddef>
 #include <cstdint>
@@ -31,8 +32,6 @@ using FlatMultiSet = fc::flat_set<SmallVec<T, InlineSize>, Cmp>;
 template<typename K, typename V, size_t InlineSize = 0, typename Cmp = std::less<K>>
 using FlatMultiMap = fc::flat_map<SmallVec<std::pair<K, V>, InlineSize>, Cmp>;
 
-
-
 /// Polyfill for C++20's span
 template<typename T>
 using ArrayRef = tcb::span<T>;
@@ -56,6 +55,15 @@ using Unexpected = tl::unexpected<Err>;
         >(std::forward<decltype(_res)>(_res).error());\
     std::forward<decltype(_res)>(_res).value();\
 })
+
+/// Standard syntax error
+struct SyntaxError {
+    View source;
+    size_t at;
+    std::string message;
+
+    void print(std::ostream &into) const;
+};
 
 ///
 /// A simple variable-sized bitset based on SmallVec.

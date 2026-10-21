@@ -47,12 +47,8 @@ class l_Determinizer {
             if (ch == ZERO_CHAR) continue;
 
             Bitset mask(m_num_states);
-            for (auto edge = state->first_for_ch(ch); 
-                    edge != state->edges().end() && edge->ch() == ch; 
-                    ++edge
-            ) {
-                mask.set(m_indices[edge->to()]);
-            }
+            for (auto &edge : state->for_char(ch))
+                mask.set(m_indices[edge.to()]);
             m_masks[idx][ch] = mask;
         }
 
@@ -95,7 +91,7 @@ class l_Determinizer {
 
 public:
     
-    l_Determinizer(const Automata &aut) :m_aut(aut), m_result(nullptr) {}
+    l_Determinizer(const Automata &aut) :m_aut(aut) {}
 
     Automata run() {
         m_num_states = m_aut.states().size();

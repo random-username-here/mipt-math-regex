@@ -11,7 +11,7 @@ int main(int argc, const char *argv[]) {
     // dumbest flag parsing ever
     if (argc == 1) {
         std::cerr << "No regex given\n";
-        std::cerr << "Usage: demo [nfa|dfa|mpdka] REGEX\n";
+        std::cerr << "Usage: demo [nfa|dfa|mdka] REGEX\n";
         std::cerr << "Does mpdka by default\n";
         return 0;
     } else if (argc == 2) {
@@ -25,7 +25,7 @@ int main(int argc, const char *argv[]) {
 
     auto aut_or_err = mreg::regex(reg);
     if (!aut_or_err) {
-        std::cerr << "Error @ " << aut_or_err.error().at << " : " << aut_or_err.error().message << '\n';
+        aut_or_err.error().print(std::cout);
         return 0;
     }
     auto aut = std::move(aut_or_err.value());
@@ -35,13 +35,13 @@ int main(int argc, const char *argv[]) {
     aut = determinize(aut);
     if (opt == "dfa") goto dump;
     aut = minimize(aut);
-    if (opt == "mpdka") goto dump;
+    if (opt == "mdka") goto dump;
 
     std::cerr << "Bad mode name\n";
     return 1;
 
 dump:
-    mreg::gviz_dump(std::cout, aut);
+    mreg::dump_gviz(std::cout, aut);
     return 0;
 
     return 0;

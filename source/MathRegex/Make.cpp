@@ -44,6 +44,8 @@ State* merge_states(State *a, State *b) {
     }
     if (b->is_terminal())
         a->set_terminal(true);
+    if (a->label().empty() && !b->label().empty())
+        a->set_label(b->label());
     if (b->automata()->initial() == b)
         b->automata()->set_initial(a);
     b->remove();
@@ -74,7 +76,8 @@ Automata make_chain(Automata &&a, Automata &&b) {
 
 Automata make_repeat(Automata &&a, size_t min, size_t max) {
     Automata res;
-    res.initial()->set_terminal(true);
+    auto initial = res.add_state(true);
+    res.set_initial(initial);
     for (size_t i = 0; i < max; ++i) {
         auto item = i == max-1 ? std::move(a) : a.clone();
         if (i >= min)

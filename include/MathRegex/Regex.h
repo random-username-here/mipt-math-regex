@@ -1,19 +1,14 @@
-///==========================================================================///
-/// MathRegex -- regex parsing
-///==========================================================================///
+///
+/// @file
+/// @brief Regex operations
+///
 #pragma once
 #include "MathRegex/Automata.h"
 
 namespace mreg {
 
-struct RegexSyntaxError {
-    View source;
-    size_t at;
-    std::string message;
-};
-
 ///
-/// Parse regex from string.
+/// @brief Parse regex from string.
 ///
 /// Accepted syntax:
 ///  - any characters for letters
@@ -25,6 +20,6 @@ struct RegexSyntaxError {
 ///  - `a?` for optional
 ///  - `a{3}` or `a{2,3}` for repeat counts
 ///
-Expected<Automata, RegexSyntaxError> regex(View str);
+Expected<Automata, SyntaxError> regex(View str);
 
 };

@@ -1,19 +1,19 @@
 #include "MathRegex/Algorithms.h"
 #include "MathRegex/Automata.h"
 #include "MathRegex/Utils.h"
-#include <iostream>
 #include <ostream>
+#include <unordered_set>
 namespace mreg {
 
-void gviz_dump(std::ostream &os, const Automata &aut) {
+void dump_gviz(std::ostream &os, const Automata &aut) {
     os << "digraph {\n";
     os << "    graph[rankdir=LR,ranksep=0.3,edgesep=0.3]\n";
     os << "    node[shape=circle,margin=0.03,width=0.2,height = 0.1];\n";
     for (const auto &s : aut.states()) {
         if (s->is_terminal())
-            os << "    p" << s.get() << "[peripheries=2,label=\"\"];\n";
+            os << "    p" << s.get() << "[peripheries=2,label=\"" << s->label() << "\"];\n";
         else
-            os << "    p" << s.get() << "[label=\"\"];\n";
+            os << "    p" << s.get() << "[label=\"" << s->label() << "\"];\n";
         for (const auto &e : s->edges()) {
             os << "    p" << s.get() << " -> p" << e.to() << " ";
             if (e.ch() == ZERO_CHAR) 
@@ -51,4 +51,73 @@ void comb_eps(Automata &aut) {
         i->remove();
 }
 
+void remove_dead_ends(Automata &aut) {
+    assert(aut.initial());
+
+    // find strongly connected components, drop those without accessible terminals
+
+    // most in-depth first, edges only from later to earlier
+    SmallVec<State*> order;
+    std::unordered_set<State*> visited;
+
+    std::function<void(State*)> topsort;
+    topsort = [&](State* s) {
+        visited.insert(s);
+        for (auto e : s->edges())
+            if (!visited.count(e.to()))
+                topsort(e.to());
+        order.push_back(s);
+    };
+
+    topsort(aut.initial());
+
+    SmallVec<State*> unused;
+    for (const auto &s : aut.states())
+        if (!visited.count(s.get()))
+            unused.push_back(s.get());
+    for (auto s : unused)
+        s->remove();
+    unused.clear();
+
+    size_t cur_comp = 0;
+    std::unordered_map<State*, size_t> component;
+    SmallVec<bool> have_terminal;
+
+    std::function<void(State*)> mark;
+    mark = [&](State* st){
+        component[st] = cur_comp;
+        have_terminal.back() |= st->is_terminal();
+        for (auto e : st->edges()) {
+            if (!component.count(e.to()))
+                mark(e.to());
+            else
+                have_terminal.back() |= have_terminal[component[e.to()]];
+        }
+    };
+
+    for (auto st : order) {
+        if (component.count(st)) continue;
+        have_terminal.push_back(false);
+        mark(st);
+        cur_comp++;
+    }
+
+    for (auto &st : aut.states())
+        if (st.get() != aut.initial() && !have_terminal[component[st.get()]])
+            unused.push_back(st.get());
+    for (auto s : unused)
+        s->remove();
+}
+
+bool matches(const Automata &aut, View word) {
+    assert(aut.is_determined());
+    const State *s = aut.initial();
+    for (Rune ch : U8Reader(word)) {
+        auto next = s->for_char(ch);
+        if (next.empty()) return false;
+        assert(next.size() == 1);
+        s = next[0].to();
+    }
+    return s->is_terminal();
+}
 };

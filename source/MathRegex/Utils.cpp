@@ -1,5 +1,24 @@
 #include "MathRegex/Utils.h"
+#include <iomanip>
 namespace mreg {
+
+void SyntaxError::print(std::ostream &into) const {
+    size_t line = 0, col = 0;
+    for (size_t i = 0; i < at; ++i) {
+        if (source[i] == '\n') ++line, col = 0;
+        else ++col;
+    }
+    size_t eol = at, sol = at - col;
+    while (eol != source.size() && source[eol] != '\n')
+        ++eol;
+    into << "Error @ " << line+1 << ":" << col+1 << " : " << message << '\n';
+    into << " " << std::setw(3) << line+1 << " | " << source.substr(sol, eol - sol) << '\n';
+    into << "     | ";
+    size_t cc = 0;
+    for (auto _ : U8Reader(source.substr(sol, col)))
+        into << " "; // unicode chars are somewhat a pain, and I didn't make the full API
+    into << "^\n";
+}
 
 void U8Reader::iterator::m_scan() {
     if (m_view.empty()) {
@@ -27,6 +46,7 @@ void U8Reader::iterator::m_scan() {
     if (m_view.size() < m_char_len) {
         m_char_len = m_view.size();
         m_char = REPLACEMENT_CHAR;
+        return;
     }
 
     uint32_t result = ((ch << m_char_len) & 0xff) >> m_char_len; // trim top 1-s

@@ -1,0 +1,8 @@
+# Determinite automata for matching
+# a string with odd number of a's
+> even
+@odd
+even - a > odd
+odd - a > even
+even - b > even
+odd - b > odd

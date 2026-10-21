@@ -109,10 +109,11 @@ class l_Minimizer {
         }
         for (size_t cls = 0; cls < m_classes.size(); ++cls) {
             if (m_classes[cls].empty()) continue;
+            if (m_classes[cls][0]->is_terminal())
+                per_class[cls]->set_terminal(true);
             for (const auto &e : m_classes[cls][0]->edges())
                 per_class[cls]->add_edge(e.ch(), per_class[m_class[e.to()]]);
         }
-        per_class[0]->set_terminal(true); // 0 is the final ones
         m_result.set_initial(per_class[m_class[m_aut.initial()]]);
     }
 
@@ -124,11 +125,13 @@ public:
         return std::move(m_result);
     }
     
-    l_Minimizer(const Automata &aut) :m_aut(aut), m_result(nullptr) { }
+    l_Minimizer(const Automata &aut) :m_aut(aut), m_result() { }
 };
 
 Automata minimize(const Automata &aut) {
-    return l_Minimizer(aut).run();
+    Automata clean = aut.clone();
+    remove_dead_ends(clean);
+    return l_Minimizer(clean).run();
 }
 
 };

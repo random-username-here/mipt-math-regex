@@ -1,12 +1,13 @@
-///==========================================================================///
-/// MathRegex -- Creating new finite automatas
-///==========================================================================///
+///
+/// @file
+/// @brief Creating new finite automata
+///
 
 #include "MathRegex/Automata.h"
 namespace mreg {
 
 ///
-/// Make automata terminate in one non-exiting state.
+/// @brief Make automata terminate in one non-exiting state.
 ///
 /// Addes ε-edges from final states to new one.
 /// If there is exactly one final state in given
@@ -17,14 +18,14 @@ namespace mreg {
 State *make_sink(Automata &a);
 
 ///
-/// Make automata start in one non-reentrant state.
+/// @brief Make automata start in one non-reentrant state.
 ///
 /// Uses existing start if it has no incoming edges.
 ///
 State *make_source(Automata &a);
 
 ///
-/// Merge one state and another, moving incoming and outgoing edges
+/// @brief Merge one state and another, moving incoming and outgoing edges
 /// Which one gets reused is unknown.
 ///
 State* merge_states(State *a, State *b);
@@ -43,7 +44,5 @@ Automata make_repeat(Automata &&a, size_t min, size_t max);
 
 /// Generate `A|B`
 Automata make_or(Automata &&a, Automata &&b);
-
-
 
 };
